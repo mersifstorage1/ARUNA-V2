@@ -88,15 +88,15 @@ tampilannya menjadi kolom 9:16 di tengah.
 
 - Menu **📸 Foto Bareng** (atau dari layar hasil game): isi data, hitung mundur
   3-2-1 (tombol atau angkat kedua tangan), lalu foto berbingkai ARUNA dengan nama
-  dan instansi langsung tampil di **https://aruna-id.web.app/logbook**. Nomor HP di
-  logbook publik disamarkan (`0812****890`), sedangkan nomor lengkap disimpan privat.
+  dan instansi langsung tampil di **https://aruna-id.web.app/logbook**. Nomor HP tidak
+  ditampilkan di halaman publik; hanya admin yang bisa melihatnya lewat Firebase Console.
 
 Data di RTDB:
 
 ```
 bukutamu/{id}   { nama, hp, instansi, skor, kode, ts }   # privat: hanya lewat Console / Admin SDK
 halloffame/{id} { nama, instansi, skor, ts }             # publik, tanpa nomor HP
-logbook/{id}    { nama, instansi, hp (tersamar), foto (JPEG base64), ts }  # publik
+logbook/{id}    { nama, instansi, foto (JPEG base64), ts }  # publik, tanpa nomor HP
 logbookPrivat/{id} { nama, hp, instansi, ts }            # privat
 ```
 

@@ -67,15 +67,12 @@
       ],
       "$id": {
         ".write": "auth != null && !data.exists()",
-        ".validate": "newData.hasChildren(['nama', 'instansi', 'hp', 'foto', 'ts'])",
+        ".validate": "newData.hasChildren(['nama', 'instansi', 'foto', 'ts'])",
         "nama": {
           ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 40"
         },
         "instansi": {
           ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 60"
-        },
-        "hp": {
-          ".validate": "newData.isString() && newData.val().matches(/^08[0-9]{2}\\*{4}[0-9]{3}$/)"
         },
         "foto": {
           ".validate": "newData.isString() && newData.val().beginsWith('data:image/jpeg;base64,') && newData.val().length <= 400000"

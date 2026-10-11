@@ -104,9 +104,6 @@ function newCode() {
   return s;
 }
 
-// Nomor HP di halaman publik disamarkan: 081234567890 → 0812****890
-function maskPhone(hp) { return `${hp.slice(0, 4)}****${hp.slice(-3)}`; }
-
 async function saveEntry(e) {
   await authReady;
   if (!auth.currentUser) throw new Error("belum login");
@@ -114,7 +111,7 @@ async function saveEntry(e) {
   if (e.type === "foto") {
     await update(ref(rtdb), {
       [`logbookPrivat/${e.id}`]: { nama: e.nama, hp: e.hp, instansi: e.instansi, ts },
-      [`logbook/${e.id}`]: { nama: e.nama, instansi: e.instansi, hp: maskPhone(e.hp), foto: e.foto, ts }
+      [`logbook/${e.id}`]: { nama: e.nama, instansi: e.instansi, foto: e.foto, ts }
     });
   } else {
     await update(ref(rtdb), {
@@ -594,7 +591,7 @@ function openForm(mode) {
   $("formEyebrow").textContent = foto ? "Logbook Pengunjung" : "Buku Tamu";
   $("formTitle").textContent = foto ? "Isi data untuk foto bareng" : "Kenalan dulu, yuk!";
   $("formConsent").textContent = foto
-    ? "Saya setuju foto, nama, dan instansi saya tampil di logbook publik ARUNA. Nomor HP ditampilkan tersamar dan nomor lengkap hanya disimpan panitia."
+    ? "Saya setuju foto, nama, dan instansi saya tampil di logbook publik ARUNA. Nomor HP tidak ditampilkan dan hanya bisa dilihat panitia."
     : "Saya setuju data ini disimpan panitia ARUNA untuk buku tamu dan pemberian hadiah. Nomor HP tidak ditampilkan di Hall of Fame.";
   show("scrForm");
   setTimeout(() => $("form").elements.nama.focus(), 50);

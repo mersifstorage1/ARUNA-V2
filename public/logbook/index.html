@@ -88,9 +88,8 @@
     const b = document.createElement("b"); b.textContent = d.nama;
     const s = document.createElement("span"); s.textContent = d.instansi;
     const sm = document.createElement("small");
-    const hp = document.createElement("span"); hp.textContent = d.hp;
     const t = document.createElement("span"); t.textContent = d.ts ? fmt.format(new Date(d.ts)) : "";
-    sm.append(hp, t);
+    sm.append(t);
     info.append(b, s, sm);
     el.append(btn, info);
     return el;

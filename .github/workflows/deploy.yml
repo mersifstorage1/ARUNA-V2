@@ -1,0 +1,56 @@
+# ARUNA — deploy otomatis ke Firebase setiap ada push ke main
+# (setara dengan deploy.ps1). Butuh GitHub Secret: FIREBASE_SERVICE_ACCOUNT
+# berisi seluruh isi file JSON service account.
+name: Deploy ke Firebase
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "public/**"
+      - "firebase.json"
+      - "database.rules.json"
+      - "firestore.rules"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Pasang Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Siapkan kredensial service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::error::Secret FIREBASE_SERVICE_ACCOUNT belum diisi (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+
+      - name: Deploy Hosting + Rules RTDB
+        run: firebase deploy --only "hosting,database" --project aruna-id --non-interactive
+
+      # Rules Firestore butuh role "Firebase Rules Admin" pada service account.
+      # Jika belum diberikan (403), langkah ini tidak menggagalkan deploy.
+      - name: Deploy Rules Firestore
+        continue-on-error: true
+        run: firebase deploy --only "firestore:rules" --project aruna-id --non-interactive
+
+      - name: Hapus kredensial
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"

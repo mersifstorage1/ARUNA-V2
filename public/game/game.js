@@ -56,13 +56,6 @@ const authReady = signInAnonymously(auth).catch((e) => { console.warn("Login ano
 
 function renderHof(list, el, highlightId) {
   el.replaceChildren();
-  if (!list.length) {
-    const li = document.createElement("li");
-    li.className = "empty";
-    li.textContent = "Belum ada skor. Jadilah yang pertama!";
-    el.append(li);
-    return;
-  }
   for (const r of list) {
     const li = document.createElement("li");
     if (r.id === highlightId) li.classList.add("me");
@@ -71,6 +64,18 @@ function renderHof(list, el, highlightId) {
     const s = document.createElement("small"); s.textContent = r.instansi;
     who.append(b, s);
     const pts = document.createElement("span"); pts.className = "pts"; pts.textContent = r.skor;
+    li.append(who, pts);
+    el.append(li);
+  }
+  // Slot kosong agar papan peringkat tetap terlihat "penuh" saat pameran baru mulai
+  for (let i = list.length; i < 5; i++) {
+    const li = document.createElement("li");
+    li.className = "slot";
+    const who = document.createElement("div"); who.className = "who";
+    const b = document.createElement("b"); b.textContent = i === 0 ? "Belum ada juara" : "Kursi kosong";
+    const s = document.createElement("small"); s.textContent = "Main sekarang dan isi tempat ini!";
+    who.append(b, s);
+    const pts = document.createElement("span"); pts.className = "pts"; pts.textContent = "—";
     li.append(who, pts);
     el.append(li);
   }
@@ -521,8 +526,11 @@ function draw(now) {
   drawBackground(now);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+  // Di menu, item jatuh hanya hiasan latar: dibuat samar agar teks tetap terbaca
+  const itemAlpha = state === "play" ? 1 : 0.28;
   for (const it of items) {
     ctx.save();
+    ctx.globalAlpha = itemAlpha;
     ctx.translate(it.x, it.y);
     ctx.rotate(it.rot);
     if (it.kind === "bad") {

@@ -20,7 +20,7 @@ button:focus-visible,input:focus-visible{outline:.5cqw solid #9fd8b9;outline-off
 [hidden]{display:none!important}
 .num{font-variant-numeric:tabular-nums}
 
-#app{position:relative;overflow:hidden;width:min(100vw,calc(100vh * 9 / 16));height:min(100vh,calc(100vw * 16 / 9));container-type:size;font-size:clamp(11px,3cqw,44px);background:#0B3B26}
+#app{position:relative;overflow:hidden;width:min(100vw,calc(100vh * 9 / 16));height:min(100vh,calc(100vw * 16 / 9));container-type:size;font-size:clamp(11px,calc(min(100vw,100vh * 9 / 16) * .03),44px);background:#0B3B26}
 #stage{position:absolute;inset:0;width:100%;height:100%;display:block}
 main{position:absolute;inset:0;pointer-events:none}
 .scr{position:absolute;inset:0;display:flex;flex-direction:column;gap:3cqw;padding:5cqw;pointer-events:auto;animation:in .5s var(--ease)}
@@ -55,7 +55,7 @@ main{position:absolute;inset:0;pointer-events:none}
 .cta{display:grid;gap:2.4cqw}
 
 /* Hall of Fame */
-.hof{flex:1;min-height:0;display:flex;flex-direction:column;padding:4cqw 4cqw 2cqw}
+.hof{flex:0 1 auto;min-height:0;display:flex;flex-direction:column;padding:4cqw 4cqw 2cqw}
 .hof-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5cqw}
 .hof-head h2{margin:0;font-size:1.15em;letter-spacing:-.02em}
 .hof-list{list-style:none;margin:0;padding:0;overflow:hidden;counter-reset:r;font-size:.85em}
@@ -71,6 +71,8 @@ main{position:absolute;inset:0;pointer-events:none}
 .hof-list .who small{display:block;color:var(--muted);font-size:.8em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hof-list .pts{font-weight:800;font-family:var(--mono);color:var(--green-deep)}
 .hof-list li.empty{display:block;color:var(--muted);text-align:center;padding:4cqw 0}
+.hof-list li.slot{color:var(--muted)}
+.hof-list li.slot b{font-weight:600}
 .hof-list li.empty::before{display:none}
 
 /* Form, kalibrasi, foto */

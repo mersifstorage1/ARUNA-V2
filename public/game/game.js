@@ -104,16 +104,34 @@ function newCode() {
   return s;
 }
 
+// Nomor HP di halaman publik disamarkan: 081234567890 → 0812****890
+function maskPhone(hp) { return `${hp.slice(0, 4)}****${hp.slice(-3)}`; }
+
 async function saveEntry(e) {
   await authReady;
   if (!auth.currentUser) throw new Error("belum login");
-  const id = e.id || push(ref(rtdb, "halloffame")).key;
   const ts = serverTimestamp();
-  await update(ref(rtdb), {
-    [`bukutamu/${id}`]: { nama: e.nama, hp: e.hp, instansi: e.instansi, skor: e.skor, kode: e.kode, ts },
-    [`halloffame/${id}`]: { nama: e.nama, instansi: e.instansi, skor: e.skor, ts }
-  });
-  return id;
+  if (e.type === "foto") {
+    await update(ref(rtdb), {
+      [`logbookPrivat/${e.id}`]: { nama: e.nama, hp: e.hp, instansi: e.instansi, ts },
+      [`logbook/${e.id}`]: { nama: e.nama, instansi: e.instansi, hp: maskPhone(e.hp), foto: e.foto, ts }
+    });
+  } else {
+    await update(ref(rtdb), {
+      [`bukutamu/${e.id}`]: { nama: e.nama, hp: e.hp, instansi: e.instansi, skor: e.skor, kode: e.kode, ts },
+      [`halloffame/${e.id}`]: { nama: e.nama, instansi: e.instansi, skor: e.skor, ts }
+    });
+  }
+  return e.id;
+}
+
+// Koneksi pameran bisa lambat: setelah 12 detik anggap gagal dan masukkan ke antrean
+// (kalau ternyata tersimpan, antrean membuangnya saat dikirim ulang).
+function saveWithTimeout(e, ms = 12000) {
+  return Promise.race([
+    saveEntry(e),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))
+  ]);
 }
 
 function loadPending() {
@@ -130,7 +148,8 @@ async function flushPending() {
   for (const e of list) {
     try { await saveEntry(e); } catch {
       // Ditolak karena sudah pernah tersimpan (balasan sebelumnya hilang) → buang dari antrean
-      const done = await get(ref(rtdb, `halloffame/${e.id}`)).then((s) => s.exists()).catch(() => false);
+      const pub = e.type === "foto" ? "logbook" : "halloffame";
+      const done = await get(ref(rtdb, `${pub}/${e.id}`)).then((s) => s.exists()).catch(() => false);
       if (!done) left.push(e);
     }
   }
@@ -168,7 +187,6 @@ async function startCamera() {
     });
     video.srcObject = stream;
     await video.play();
-    $("cam").hidden = false;
     ctl.mode = "motion";
     setCamTag("Gerakan");
     try {
@@ -269,14 +287,18 @@ function updateController(now) {
 // Pointer / keyboard selalu aktif sebagai cadangan
 let keyDir = 0;
 window.addEventListener("pointermove", (e) => {
-  if (ctl.mode === "pointer" || !ctl.present) ctl.x = clamp(e.clientX / innerWidth, 0, 1);
+  if (ctl.mode !== "pointer" && ctl.present) return;
+  const r = cv.getBoundingClientRect();
+  ctl.x = clamp((e.clientX - r.left) / r.width, 0, 1);
 });
 window.addEventListener("keydown", (e) => {
   if (e.target.tagName === "INPUT") return;
   if (e.key === "ArrowLeft") keyDir = -1;
   if (e.key === "ArrowRight") keyDir = 1;
   if (e.key === "f" || e.key === "F") toggleFullscreen();
-  if (e.key === "Enter" && state === "home") openForm();
+  if (e.key === "Enter" && state === "home") openForm("game");
+  if ((e.key === "p" || e.key === "P") && state === "home") openForm("foto");
+  if ((e.key === "Enter" || e.key === " ") && state === "photo" && photo.phase === "live") { e.preventDefault(); startCountdown(); }
   if ((e.key === "Enter" || e.key === " ") && state === "calib") { e.preventDefault(); startGame(); }
 });
 window.addEventListener("keyup", (e) => {
@@ -310,7 +332,8 @@ const ctx = cv.getContext("2d");
 let W = 0, H = 0, DPR = 1;
 function resize() {
   DPR = Math.min(devicePixelRatio || 1, 2);
-  W = innerWidth; H = innerHeight;
+  const r = cv.getBoundingClientRect();
+  W = r.width; H = r.height;
   cv.width = W * DPR; cv.height = H * DPR;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 }
@@ -336,7 +359,7 @@ machine.img.src = "/app/img/mesin.png";
 const player = { x: 0.5, px: 0, bounce: 0, shake: 0 };
 
 function machineBox() {
-  const h = clamp(H * 0.34, 150, 340);
+  const h = Math.min(H * 0.3, W * 0.5);
   const w = machine.ready ? h * machine.sw / machine.sh : h * 0.45;
   const cx = player.px;
   const top = H - h - 8 + player.bounce;
@@ -390,7 +413,7 @@ let score = 0, lives = LIVES, caught = 0, combo = 0, mult = 1, multUntil = 0;
 let tStart = 0, spawnAt = 0, lastT = 0;
 let player0 = null;   // data buku tamu pemain aktif
 
-function itemSize() { return clamp(H * 0.085, 44, 96); }
+function itemSize() { return W * 0.12; }
 
 function spawn(elapsed, demo) {
   const p = elapsed / ROUND_SEC;
@@ -524,7 +547,7 @@ function draw(now) {
     ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill();
   }
   ctx.globalAlpha = 1;
-  ctx.font = `800 ${clamp(H * 0.035, 18, 34)}px "Plus Jakarta Sans",sans-serif`;
+  ctx.font = `800 ${W * 0.05}px "Plus Jakarta Sans",sans-serif`;
   for (const f of floats) {
     ctx.globalAlpha = Math.max(0, f.life);
     ctx.lineWidth = 5; ctx.strokeStyle = "rgba(0,0,0,.45)";
@@ -537,7 +560,7 @@ function draw(now) {
 
 /* ---------------- Alur layar ---------------- */
 
-const screens = ["scrHome", "scrForm", "scrCalib", "scrResult"];
+const screens = ["scrHome", "scrForm", "scrCalib", "scrResult", "scrPhoto"];
 function show(id) {
   for (const s of screens) $(s).hidden = s !== id;
 }
@@ -555,14 +578,24 @@ function goHome() {
   state = "home";
   player0 = null;
   myEntryId = null;
+  stopPhoto();
+  $("cam").hidden = true;
   $("hud").hidden = true;
   $("form").reset();
   $("formErr").textContent = "";
   show("scrHome");
 }
 
-function openForm() {
+let formMode = "game";
+function openForm(mode) {
+  formMode = mode;
   state = "form";
+  const foto = mode === "foto";
+  $("formEyebrow").textContent = foto ? "Logbook Pengunjung" : "Buku Tamu";
+  $("formTitle").textContent = foto ? "Isi data untuk foto bareng" : "Kenalan dulu, yuk!";
+  $("formConsent").textContent = foto
+    ? "Saya setuju foto, nama, dan instansi saya tampil di logbook publik ARUNA. Nomor HP ditampilkan tersamar dan nomor lengkap hanya disimpan panitia."
+    : "Saya setuju data ini disimpan panitia ARUNA untuk buku tamu dan pemberian hadiah. Nomor HP tidak ditampilkan di Hall of Fame.";
   show("scrForm");
   setTimeout(() => $("form").elements.nama.focus(), 50);
   // Pengunjung pergi tanpa mengisi → kembali ke layar awal
@@ -592,7 +625,8 @@ $("form").addEventListener("submit", (e) => {
   if (!f.setuju.checked) return void (err.textContent = "Centang persetujuan dulu, ya.");
   err.textContent = "";
   player0 = { nama, hp, instansi };
-  openCalib();
+  if (formMode === "foto") openPhoto();
+  else openCalib();
 });
 
 async function openCalib() {
@@ -611,6 +645,7 @@ async function openCalib() {
     return;
   }
   if (state !== "calib") return;
+  $("cam").hidden = false;
   if (ctl.mode === "pose") {
     $("calTitle").textContent = "Angkat kedua tangan untuk mulai";
     $("calText").textContent = "Berdiri ±1,5 m dari layar sampai bahumu terlihat. Geser badan ke kiri/kanan untuk menggerakkan mesin ARUNA.";
@@ -679,7 +714,7 @@ async function endGame() {
 
   entry.id = push(ref(rtdb, "halloffame")).key;
   try {
-    myEntryId = await saveEntry(entry);
+    myEntryId = await saveWithTimeout(entry);
     const higher = await get(query(ref(rtdb, "halloffame"), orderByChild("skor"), startAfter(score)));
     if (state === "result") $("rRank").textContent = `Peringkat #${higher.size + 1} di Hall of Fame`;
     renderHof(hofTop, $("hofResult"), myEntryId);
@@ -690,11 +725,182 @@ async function endGame() {
   }
 }
 
-$("bPlay").addEventListener("click", openForm);
+$("bPlay").addEventListener("click", () => openForm("game"));
+$("bPhoto").addEventListener("click", () => openForm("foto"));
+$("bResPhoto").addEventListener("click", () => openPhoto());
 $("bBack").addEventListener("click", goHome);
 $("bCalBack").addEventListener("click", goHome);
 $("bStart").addEventListener("click", startGame);
 $("bDone").addEventListener("click", goHome);
+
+/* ---------------- Foto bareng (logbook) ---------------- */
+
+const PH_W = 800, PH_H = 600;
+const PH_DONE_SEC = 15;
+const phView = $("phView");
+const phCtx = phView.getContext("2d");
+const photo = { phase: "off", hold: 0, data: null };
+
+function setPhase(phase) {
+  photo.phase = phase;
+  $("phLive").hidden = phase !== "live";
+  $("phReview").hidden = phase !== "review";
+  $("phDone").hidden = phase !== "done";
+  $("phHoldBar").hidden = phase !== "live" || ctl.mode !== "pose";
+}
+
+// Frame kamera (dicerminkan seperti cermin) + bingkai ARUNA dengan nama & instansi
+function composePhoto(g) {
+  g.save();
+  g.fillStyle = "#0B3B26";
+  g.fillRect(0, 0, PH_W, PH_H);
+  if (video.readyState >= 2) {
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const sc = Math.max(PH_W / vw, PH_H / vh);
+    const dw = vw * sc, dh = vh * sc;
+    g.translate(PH_W, 0);
+    g.scale(-1, 1);
+    g.drawImage(video, (PH_W - dw) / 2, (PH_H - dh) / 2, dw, dh);
+  }
+  g.restore();
+
+  const band = 150;
+  const grad = g.createLinearGradient(0, PH_H - band - 60, 0, PH_H);
+  grad.addColorStop(0, "rgba(11,59,38,0)");
+  grad.addColorStop(0.35, "rgba(11,59,38,.85)");
+  grad.addColorStop(1, "rgba(11,59,38,.95)");
+  g.fillStyle = grad;
+  g.fillRect(0, PH_H - band - 60, PH_W, band + 60);
+
+  if (machine.ready) {
+    const mh = 170, mw = mh * machine.sw / machine.sh;
+    g.drawImage(machine.img, machine.sx, machine.sy, machine.sw, machine.sh, PH_W - mw - 24, PH_H - mh - 14, mw, mh);
+  }
+  const p = player0 || { nama: "", instansi: "" };
+  g.fillStyle = "#fff";
+  g.textAlign = "left";
+  g.textBaseline = "alphabetic";
+  g.font = '800 40px "Plus Jakarta Sans",sans-serif';
+  g.fillText(p.nama, 32, PH_H - 92, PH_W - 200);
+  g.font = '600 26px "Plus Jakarta Sans",sans-serif';
+  g.fillStyle = "rgba(255,255,255,.85)";
+  g.fillText(p.instansi, 32, PH_H - 56, PH_W - 200);
+  g.font = '700 18px "Plus Jakarta Sans",sans-serif';
+  g.fillStyle = "#F4B63A";
+  const tgl = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+  g.fillText(`ARUNA · PAMERAN INOVASI · ${tgl.toUpperCase()}`, 32, PH_H - 24, PH_W - 200);
+}
+
+async function openPhoto() {
+  clearInterval(idleTimer);
+  if (!player0) return goHome();
+  state = "photo";
+  $("hud").hidden = true;
+  show("scrPhoto");
+  $("phTitle").textContent = `Foto bareng ARUNA, ${player0.nama.split(" ")[0]}!`;
+  $("phHint").textContent = "Menyalakan kamera…";
+  $("cam").hidden = true;
+  photo.data = null;
+  setPhase("live");
+  try {
+    await startCamera();
+    $("cam").hidden = true;   // pratinjau kecil tidak perlu, kamera tampil besar di sini
+    $("phHint").textContent = ctl.mode === "pose"
+      ? "Ajak temanmu masuk frame. Angkat kedua tangan atau tekan tombol untuk hitung mundur."
+      : "Ajak temanmu masuk frame, lalu tekan tombol untuk hitung mundur.";
+    setPhase("live");
+  } catch (e) {
+    console.warn(e);
+    $("phHint").textContent = "Kamera tidak tersedia. Pastikan izin kamera diberikan, lalu coba lagi.";
+  }
+  resetPhotoIdle();
+}
+
+function resetPhotoIdle() {
+  clearInterval(idleTimer);
+  let idle = 0;
+  idleTimer = setInterval(() => {
+    if (state !== "photo") return clearInterval(idleTimer);
+    if (photo.phase === "done") {
+      $("phCountdown").textContent = Math.max(0, PH_DONE_SEC - ++idle);
+      if (idle >= PH_DONE_SEC) goHome();
+    } else if (photo.phase !== "saving" && ++idle > 90) goHome();
+  }, 1000);
+}
+
+function stopPhoto() {
+  photo.phase = "off";
+  photo.data = null;
+  $("phCount").hidden = true;
+}
+
+function startCountdown() {
+  if (photo.phase !== "live" || video.readyState < 2) return;
+  setPhase("count");
+  resetPhotoIdle();
+  let n = 3;
+  const el = $("phCount");
+  const tick = () => {
+    if (photo.phase !== "count") return;
+    if (n === 0) {
+      el.hidden = true;
+      composePhoto(phCtx);
+      photo.data = phView.toDataURL("image/jpeg", 0.75);
+      if (photo.data.length > 380000) photo.data = phView.toDataURL("image/jpeg", 0.55);
+      const f = $("phFlash"); f.hidden = false; setTimeout(() => { f.hidden = true; }, 500);
+      beep(1200, 0.08, "square", 0.1);
+      $("phHint").textContent = "Suka hasilnya? Simpan ke logbook, atau ulangi.";
+      setPhase("review");
+      return;
+    }
+    el.textContent = n;
+    el.hidden = false;
+    el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
+    beep(660, 0.1);
+    n--;
+    setTimeout(tick, 1000);
+  };
+  tick();
+}
+
+async function savePhoto() {
+  if (photo.phase !== "review" || !photo.data) return;
+  setPhase("saving");
+  $("phHint").textContent = "Menyimpan…";
+  const entry = { type: "foto", id: push(ref(rtdb, "logbook")).key, ...player0, foto: photo.data };
+  try {
+    await saveWithTimeout(entry);
+    $("phHint").textContent = "Tersimpan! Fotomu sudah tampil di aruna-id.web.app/logbook";
+  } catch (e) {
+    console.warn("Simpan foto gagal, masuk antrean", e);
+    storePending([...loadPending(), entry]);
+    $("phHint").textContent = "Foto tersimpan di perangkat dan akan diunggah saat online.";
+  }
+  if (state !== "photo") return;
+  $("phCountdown").textContent = PH_DONE_SEC;
+  setPhase("done");
+  resetPhotoIdle();
+}
+
+function photoTick(dt) {
+  if (state !== "photo") return;
+  if (photo.phase === "live" || photo.phase === "count") composePhoto(phCtx);
+  if (photo.phase === "live" && ctl.mode === "pose") {
+    photo.hold = ctl.handsUp ? photo.hold + dt * 1000 : Math.max(0, photo.hold - dt * 2000);
+    $("phHold").style.width = `${Math.min(100, photo.hold / 8)}%`;
+    if (photo.hold >= 800) { photo.hold = 0; startCountdown(); }
+  }
+}
+
+$("bShoot").addEventListener("click", startCountdown);
+$("bRetake").addEventListener("click", () => {
+  photo.data = null;
+  $("phHint").textContent = "Siap? Angkat kedua tangan atau tekan tombol.";
+  setPhase("live");
+});
+$("bSave").addEventListener("click", savePhoto);
+$("bPhBack").addEventListener("click", goHome);
+$("bPhDone").addEventListener("click", goHome);
 
 /* ---------------- Loop utama ---------------- */
 
@@ -705,6 +911,7 @@ function frame(now) {
     try { updateController(now); } catch (e) { console.warn(e); }
   }
   calibTick(dt);
+  photoTick(dt);
   step(dt, now);
   draw(now);
   requestAnimationFrame(frame);

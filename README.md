@@ -70,9 +70,10 @@ ESP32 menulis ke `telemetry`; aplikasi berlangganan lewat `assets/js/live.js`.
 
 ## Game Pameran (`/game`)
 
-**ARUNA Catch**: game hypercasual untuk stan pameran, sekaligus buku tamu dan
-Hall of Fame. Buka https://aruna-id.web.app/game di laptop + webcam, lalu tekan
-`F` untuk layar penuh.
+**ARUNA Catch**: kiosk stan pameran untuk **layar potret (9:16)**, berisi game,
+foto bareng, buku tamu, dan Hall of Fame. Buka https://aruna-id.web.app/game di
+perangkat dengan webcam, lalu tekan `F` untuk layar penuh. Di layar landscape,
+tampilannya menjadi kolom 9:16 di tengah.
 
 - Pengunjung mengisi **nama, nomor HP, dan asal instansi**, lalu bermain 60 detik.
 - Kamera menjadi kontroler: geser badan ke kiri/kanan untuk menggerakkan mesin
@@ -85,15 +86,23 @@ Hall of Fame. Buka https://aruna-id.web.app/game di laptop + webcam, lalu tekan
 - Di layar hasil, pengunjung mendapat skor, peringkat, dan **kode hadiah 5 huruf**
   untuk ditukar ke panitia.
 
+- Menu **📸 Foto Bareng** (atau dari layar hasil game): isi data, hitung mundur
+  3-2-1 (tombol atau angkat kedua tangan), lalu foto berbingkai ARUNA dengan nama
+  dan instansi langsung tampil di **https://aruna-id.web.app/logbook**. Nomor HP di
+  logbook publik disamarkan (`0812****890`), sedangkan nomor lengkap disimpan privat.
+
 Data di RTDB:
 
 ```
 bukutamu/{id}   { nama, hp, instansi, skor, kode, ts }   # privat: hanya lewat Console / Admin SDK
 halloffame/{id} { nama, instansi, skor, ts }             # publik, tanpa nomor HP
+logbook/{id}    { nama, instansi, hp (tersamar), foto (JPEG base64), ts }  # publik
+logbookPrivat/{id} { nama, hp, instansi, ts }            # privat
 ```
 
 Untuk mencocokkan kode hadiah atau mengekspor daftar tamu, buka Firebase Console →
-Realtime Database → `bukutamu` → ⋮ → *Export JSON*. Skor yang gagal terkirim
+Realtime Database → `bukutamu` / `logbookPrivat` → ⋮ → *Export JSON*. Foto yang
+tidak pantas bisa dihapus dari node `logbook` di Console. Skor yang gagal terkirim
 karena koneksi putus disimpan di perangkat dan dikirim ulang otomatis.
 
 ---

@@ -68,6 +68,34 @@ devices/{deviceId}/
 
 ESP32 menulis ke `telemetry`; aplikasi berlangganan lewat `assets/js/live.js`.
 
+## Game Pameran (`/game`)
+
+**ARUNA Catch**: game hypercasual untuk stan pameran, sekaligus buku tamu dan
+Hall of Fame. Buka https://aruna-id.web.app/game di laptop + webcam, lalu tekan
+`F` untuk layar penuh.
+
+- Pengunjung mengisi **nama, nomor HP, dan asal instansi**, lalu bermain 60 detik.
+- Kamera menjadi kontroler: geser badan ke kiri/kanan untuk menggerakkan mesin
+  ARUNA, dan angkat kedua tangan untuk mulai (MediaPipe Pose, diproses di
+  perangkat, tidak direkam). Kalau model gagal dimuat, game memakai deteksi
+  gerakan sederhana. Tanpa kamera, game bisa dimainkan dengan mouse, layar
+  sentuh, atau tombol panah.
+- Tangkap sisa makanan organik (+poin) dan hindari sampah anorganik (nyawa
+  berkurang). 🦠 mikroba starter memberi poin ×2.
+- Di layar hasil, pengunjung mendapat skor, peringkat, dan **kode hadiah 5 huruf**
+  untuk ditukar ke panitia.
+
+Data di RTDB:
+
+```
+bukutamu/{id}   { nama, hp, instansi, skor, kode, ts }   # privat: hanya lewat Console / Admin SDK
+halloffame/{id} { nama, instansi, skor, ts }             # publik, tanpa nomor HP
+```
+
+Untuk mencocokkan kode hadiah atau mengekspor daftar tamu, buka Firebase Console →
+Realtime Database → `bukutamu` → ⋮ → *Export JSON*. Skor yang gagal terkirim
+karena koneksi putus disimpan di perangkat dan dikirim ulang otomatis.
+
 ---
 
 © 2026 Tim ARUNA · Dibangun untuk sekolah program MBG 💚

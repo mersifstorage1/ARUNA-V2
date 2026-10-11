@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F6B40">
+<title>ARUNA Catch</title>
+<meta name="description" content="Game pameran ARUNA: gerakkan badanmu di depan kamera untuk menangkap sisa makanan ke biodigester. Sekaligus buku tamu dan Hall of Fame.">
+<link rel="icon" href="/app/img/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="game.css">
+</head>
+<body>
+<canvas id="stage" aria-hidden="true"></canvas>
+
+<!-- Pratinjau kamera (diproses di perangkat, tidak direkam) -->
+<div class="cam" id="cam" hidden>
+  <video id="video" playsinline muted></video>
+  <canvas id="camDots"></canvas>
+  <span class="cam-tag" id="camTag">Kamera</span>
+</div>
+
+<!-- HUD saat bermain -->
+<div class="hud" id="hud" hidden>
+  <div class="hud-box"><span class="eyebrow">Skor</span><b class="num" id="hScore">0</b></div>
+  <div class="hud-box"><span class="eyebrow">Waktu</span><b class="num" id="hTime">60</b></div>
+  <div class="hud-box"><span class="eyebrow">Nyawa</span><b id="hLives">🌱🌱🌱</b></div>
+  <div class="hud-box gas"><span class="eyebrow">Biogas</span><div class="bar"><i id="hGas"></i></div></div>
+  <div class="mult" id="hMult" hidden>×2 Mikroba aktif!</div>
+</div>
+
+<main>
+  <!-- 1. Layar sambutan + Hall of Fame -->
+  <section class="scr" id="scrHome">
+    <div class="hero">
+      <img class="hero-img" src="/app/img/mesin.png" alt="Mesin biodigester ARUNA">
+      <div>
+        <p class="eyebrow light">Pameran Inovasi · ARUNA</p>
+        <h1>Tangkap Sisa Makanan,<br>Nyalakan Biogas!</h1>
+        <p class="lead">Gerakkan badanmu ke kiri dan kanan di depan kamera. Masukkan sisa makanan ke biodigester ARUNA dan hindari sampah plastik.</p>
+        <ul class="legend">
+          <li><span>🍚🥬🍌🐟</span> Organik = +poin</li>
+          <li><span>🥤🧴🔋🥫</span> Anorganik = nyawa berkurang</li>
+          <li><span>🦠</span> Mikroba starter = poin ×2</li>
+        </ul>
+        <button class="btn pri big" id="bPlay">Main Sekarang</button>
+        <p class="note light">Atau tekan <kbd>Enter</kbd> · <kbd>F</kbd> layar penuh</p>
+      </div>
+    </div>
+    <aside class="hof card">
+      <div class="hof-head"><h2>🏆 Hall of Fame</h2><span class="chip"><i></i>Live</span></div>
+      <ol class="hof-list" id="hofHome"><li class="empty">Memuat…</li></ol>
+    </aside>
+  </section>
+
+  <!-- 2. Buku tamu -->
+  <section class="scr" id="scrForm" hidden>
+    <form class="card form" id="form" novalidate autocomplete="off">
+      <p class="eyebrow">Buku Tamu</p>
+      <h2>Kenalan dulu, yuk!</h2>
+      <label>Nama
+        <input name="nama" maxlength="40" required placeholder="Nama lengkap">
+      </label>
+      <label>Nomor HP / WhatsApp
+        <input name="hp" type="tel" inputmode="tel" maxlength="18" required placeholder="08xxxxxxxxxx">
+      </label>
+      <label>Asal Instansi
+        <input name="instansi" maxlength="60" required placeholder="Sekolah / kampus / perusahaan">
+      </label>
+      <label class="check"><input type="checkbox" name="setuju" required>
+        <span>Saya setuju data ini disimpan panitia ARUNA untuk buku tamu dan pemberian hadiah. Nomor HP tidak ditampilkan di Hall of Fame.</span>
+      </label>
+      <p class="err" id="formErr" role="alert"></p>
+      <div class="row">
+        <button type="button" class="btn sec2" id="bBack">Batal</button>
+        <button type="submit" class="btn pri">Lanjut</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- 3. Kalibrasi kamera -->
+  <section class="scr" id="scrCalib" hidden>
+    <div class="card calib">
+      <p class="eyebrow">Siap-siap, <span id="calName"></span>!</p>
+      <h2 id="calTitle">Menyalakan kamera…</h2>
+      <p id="calText">Berdiri sekitar 1,5 meter dari layar sampai bahumu terlihat di kamera.</p>
+      <div class="hold"><i id="calHold"></i></div>
+      <div class="row">
+        <button class="btn sec2" id="bCalBack">Batal</button>
+        <button class="btn pri" id="bStart">Mulai</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Hasil -->
+  <section class="scr" id="scrResult" hidden>
+    <div class="card result">
+      <p class="eyebrow">Hasil Permainan</p>
+      <div class="tier" id="rTier">🥇</div>
+      <h2 id="rTitle">Pahlawan Biogas</h2>
+      <div class="big-score num" id="rScore">0</div>
+      <p class="rank" id="rRank">Menyimpan skor…</p>
+      <div class="stats">
+        <div><b class="num" id="rKg">0</b><span>kg sisa makanan diolah</span></div>
+        <div><b class="num" id="rGas">0</b><span>liter biogas</span></div>
+        <div><b class="num" id="rMin">0</b><span>menit kompor menyala</span></div>
+      </div>
+      <div class="claim">
+        <span>Kode hadiah, tunjukkan ke panitia:</span>
+        <b class="num" id="rCode">-----</b>
+      </div>
+      <p class="fact" id="rFact"></p>
+      <button class="btn pri" id="bDone"><span>Selesai (<span id="rCount">30</span>)</span></button>
+    </div>
+    <aside class="hof card">
+      <div class="hof-head"><h2>🏆 Hall of Fame</h2></div>
+      <ol class="hof-list" id="hofResult"></ol>
+    </aside>
+  </section>
+</main>
+
+<div class="toast" id="toast" hidden></div>
+
+<script type="module" src="game.js"></script>
+</body>
+</html>

@@ -7,6 +7,32 @@
         ".read": "auth != null",
         ".write": false
       }
+    },
+    "bukutamu": {
+      "$id": {
+        ".write": "auth != null && !data.exists()",
+        ".validate": "newData.hasChildren(['nama', 'hp', 'instansi', 'skor', 'kode', 'ts'])",
+        "nama": { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 40" },
+        "hp": { ".validate": "newData.isString() && newData.val().matches(/^08[0-9]{8,12}$/)" },
+        "instansi": { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 60" },
+        "skor": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5000" },
+        "kode": { ".validate": "newData.isString() && newData.val().matches(/^[A-Z0-9]{5}$/)" },
+        "ts": { ".validate": "newData.val() == now" },
+        "$other": { ".validate": false }
+      }
+    },
+    "halloffame": {
+      ".read": true,
+      ".indexOn": ["skor"],
+      "$id": {
+        ".write": "auth != null && !data.exists()",
+        ".validate": "newData.hasChildren(['nama', 'instansi', 'skor', 'ts'])",
+        "nama": { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 40" },
+        "instansi": { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 60" },
+        "skor": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5000" },
+        "ts": { ".validate": "newData.val() == now" },
+        "$other": { ".validate": false }
+      }
     }
   }
 }
